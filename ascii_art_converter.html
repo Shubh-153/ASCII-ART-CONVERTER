@@ -1,0 +1,1003 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ASCII Art Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #7c6aff;
+    --accent2: #ff6ab0;
+    --accent3: #6affd4;
+    --text: #e8e6ff;
+    --muted: #6b6888;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .logo {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent3);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    border: 1px solid rgba(106,255,212,0.3);
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-family: var(--sans);
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 400;
+  }
+
+  /* Main layout */
+  .workspace {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (max-width: 700px) {
+    .workspace { grid-template-columns: 1fr; }
+  }
+
+  /* Panels */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+  .dot-red { background: #ff5f57; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green { background: #28ca41; }
+
+  /* Upload zone */
+  .upload-zone {
+    position: relative;
+    margin: 1.5rem;
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    overflow: hidden;
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(124,106,255,0.05);
+  }
+
+  .upload-zone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+    opacity: 0.5;
+  }
+
+  .upload-text {
+    font-size: 0.9rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .upload-text strong {
+    color: var(--accent);
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 4px;
+  }
+
+  #preview-img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: contain;
+  }
+
+  /* Controls */
+  .controls {
+    padding: 0 1.5rem 1.5rem;
+  }
+
+  .control-group {
+    margin-bottom: 1.25rem;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  /* Mode tabs */
+  .mode-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .mode-tab {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .mode-tab:hover { border-color: var(--accent); color: var(--text); }
+
+  .mode-tab.active {
+    background: rgba(124,106,255,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Select & Range */
+  select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b6888' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    outline: none;
+  }
+  select:focus { border-color: var(--accent); }
+
+  .range-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  input[type=range] {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .range-val {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  /* Checkbox row */
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .check-row input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+  .check-row:hover { color: var(--text); }
+
+  /* Convert btn */
+  .btn-convert {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-family: var(--sans);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.02em;
+    margin-top: 0.5rem;
+  }
+
+  .btn-convert:hover { opacity: 0.9; }
+  .btn-convert:active { transform: scale(0.98); }
+  .btn-convert:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Output panel */
+  .output-panel {
+    grid-column: 1 / -1;
+    display: none;
+  }
+
+  .output-panel.visible { display: block; }
+
+  .output-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .output-info {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .toolbar-btns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn-sm {
+    padding: 5px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+  .ascii-output {
+    padding: 1.5rem;
+    overflow-x: auto;
+    background: #07070d;
+  }
+
+  #ascii-result {
+    font-family: var(--mono);
+    font-size: 7px;
+    line-height: 1.1;
+    white-space: pre;
+    color: var(--accent3);
+    display: block;
+    min-height: 100px;
+  }
+
+  #ascii-result.mode-binary { color: #7c6aff; }
+  #ascii-result.mode-blocks { color: #ff6ab0; }
+  #ascii-result.mode-braille { color: #6affd4; }
+  #ascii-result.mode-emoji { font-size: 10px; line-height: 1.0; }
+  #ascii-result.mode-matrix { color: #28ca41; text-shadow: 0 0 6px #28ca41; }
+
+  /* Spinner */
+  .spinner {
+    display: none;
+    width: 20px; height: 20px;
+    border: 2px solid rgba(124,106,255,0.3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto;
+  }
+  .spinner.active { display: inline-block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-bar {
+    text-align: center;
+    padding: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    display: none;
+  }
+  .status-bar.active { display: block; }
+
+  canvas { display: none; }
+
+  /* Color toggle */
+  .color-preview {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .color-swatch {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .color-swatch.active { border-color: #fff; transform: scale(1.15); }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">✦ ASCII Studio</div>
+    <h1>ASCII Art Converter</h1>
+    <p class="subtitle">Transform any image into character-based art across multiple styles</p>
+  </header>
+
+  <div class="workspace">
+    <!-- Input Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span style="margin-left:6px;">Input</span>
+      </div>
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept="image/*" />
+        <div id="upload-placeholder">
+          <div class="upload-icon">⬡</div>
+          <div class="upload-text">
+            <strong>Drop image here</strong>
+            or click to browse
+          </div>
+        </div>
+        <img id="preview-img" style="display:none;" />
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <label>Conversion Mode</label>
+          <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="ascii">ASCII</button>
+            <button class="mode-tab" data-mode="binary">Binary</button>
+            <button class="mode-tab" data-mode="blocks">Blocks</button>
+            <button class="mode-tab" data-mode="braille">Braille</button>
+            <button class="mode-tab" data-mode="matrix">Matrix</button>
+            <button class="mode-tab" data-mode="emoji">Emoji</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Character Set</label>
+          <select id="charset-select">
+            <option value="standard">Standard — @#S%?*+;:,. </option>
+            <option value="dense">Dense — $@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft</option>
+            <option value="simple">Simple — █▓▒░ </option>
+            <option value="minimal">Minimal — .:+*#</option>
+            <option value="letters">Letters — ABCDEFGHIJKLMNOPQRSTUVWXYZ</option>
+            <option value="numbers">Numbers — 1234567890</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>Resolution <span id="res-val" style="color:var(--accent)">80</span> cols</label>
+          <div class="range-wrap">
+            <input type="range" id="res-slider" min="30" max="180" value="80" step="5" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Contrast <span id="contrast-val" style="color:var(--accent)">1.0</span>×</label>
+          <div class="range-wrap">
+            <input type="range" id="contrast-slider" min="0.5" max="3" value="1" step="0.1" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Brightness <span id="bright-val" style="color:var(--accent)">0</span></label>
+          <div class="range-wrap">
+            <input type="range" id="bright-slider" min="-100" max="100" value="0" step="5" />
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label style="margin-bottom:10px;">Options</label>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label class="check-row">
+              <input type="checkbox" id="invert-check" /> Invert colors
+            </label>
+            <label class="check-row">
+              <input type="checkbox" id="color-check" /> Colored output (ANSI-style)
+            </label>
+            <label class="check-row">
+              <input type="checkbox" id="edge-check" /> Edge detection mode
+            </label>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Color Theme</label>
+          <div class="color-preview">
+            <div class="color-swatch active" data-color="#6affd4" style="background:#6affd4;" title="Mint"></div>
+            <div class="color-swatch" data-color="#7c6aff" style="background:#7c6aff;" title="Violet"></div>
+            <div class="color-swatch" data-color="#ff6ab0" style="background:#ff6ab0;" title="Pink"></div>
+            <div class="color-swatch" data-color="#28ca41" style="background:#28ca41;" title="Matrix"></div>
+            <div class="color-swatch" data-color="#ffbd2e" style="background:#ffbd2e;" title="Amber"></div>
+            <div class="color-swatch" data-color="#e8e6ff" style="background:#e8e6ff;" title="White"></div>
+          </div>
+        </div>
+
+        <button class="btn-convert" id="convert-btn" disabled>
+          Convert to ASCII Art
+        </button>
+
+        <div class="status-bar" id="status-bar">
+          <span class="spinner active"></span>
+          <span id="status-text" style="margin-left:8px;">Processing image...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Info Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span style="margin-left:6px;">Mode Guide</span>
+      </div>
+      <div style="padding:1.5rem;font-size:13px;line-height:1.7;color:var(--muted);">
+        <div id="mode-description">
+          <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:1rem;">
+            <span style="font-size:1.5rem;">▒</span>
+            <div>
+              <strong style="color:var(--text);font-size:14px;">ASCII Mode</strong>
+              <p>Classic character art using printable ASCII characters. Density of characters maps to pixel brightness, creating detailed grayscale representations.</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:0.5rem;">
+          <p style="font-size:11px;font-family:var(--mono);letter-spacing:0.08em;color:var(--muted);margin-bottom:0.75rem;">QUICK TIPS</p>
+          <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;">
+            <li style="display:flex;gap:8px;"><span style="color:var(--accent)">→</span> Higher resolution = more detail, larger output</li>
+            <li style="display:flex;gap:8px;"><span style="color:var(--accent)">→</span> Edge detection works great for logos & line art</li>
+            <li style="display:flex;gap:8px;"><span style="color:var(--accent)">→</span> Binary mode is perfect for high-contrast images</li>
+            <li style="display:flex;gap:8px;"><span style="color:var(--accent)">→</span> Try Braille for ultra fine-grained output</li>
+            <li style="display:flex;gap:8px;"><span style="color:var(--accent)">→</span> Emoji mode creates colorful mosaic art</li>
+          </ul>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding-top:1rem;margin-top:1rem;">
+          <p style="font-size:11px;font-family:var(--mono);letter-spacing:0.08em;color:var(--muted);margin-bottom:0.75rem;">STATS</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="background:var(--surface2);border-radius:8px;padding:10px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Dimensions</div>
+              <div style="font-family:var(--mono);font-size:13px;color:var(--text);" id="stat-dim">—</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:10px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Chars Generated</div>
+              <div style="font-family:var(--mono);font-size:13px;color:var(--text);" id="stat-chars">—</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:10px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Mode</div>
+              <div style="font-family:var(--mono);font-size:13px;color:var(--text);" id="stat-mode">—</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:10px;">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Render Time</div>
+              <div style="font-family:var(--mono);font-size:13px;color:var(--text);" id="stat-time">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output Panel -->
+    <div class="panel output-panel" id="output-panel">
+      <div class="panel-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span style="margin-left:6px;">Output</span>
+      </div>
+      <div class="output-toolbar">
+        <span class="output-info" id="output-info">Ready</span>
+        <div class="toolbar-btns">
+          <button class="btn-sm" onclick="copyOutput()">Copy</button>
+          <button class="btn-sm" onclick="downloadOutput()">Download .txt</button>
+          <button class="btn-sm" onclick="increaseFontSize()">A+</button>
+          <button class="btn-sm" onclick="decreaseFontSize()">A-</button>
+        </div>
+      </div>
+      <div class="ascii-output">
+        <pre id="ascii-result"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<canvas id="work-canvas"></canvas>
+
+<script>
+const CHARSETS = {
+  standard: '@#S%?*+;:,. ',
+  dense: '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/|()1{}[]?-_+~<>i!lI;:,"^`\'. ',
+  simple: '█▓▒░ ',
+  minimal: '.:+*#@',
+  letters: 'ZYXWVUTSRQPONMLKJIHGFEDCBA ',
+  numbers: '9876543210 '
+};
+
+const MODE_INFO = {
+  ascii: { icon: '▒', title: 'ASCII Mode', desc: 'Classic character art using printable ASCII characters. Density of characters maps to pixel brightness, creating detailed grayscale representations.' },
+  binary: { icon: '01', title: 'Binary Mode', desc: 'Every pixel becomes 0 or 1 based on a luminance threshold. Creates high-contrast, stark black-and-white representations — ideal for logos and bold shapes.' },
+  blocks: { icon: '█', title: 'Block Mode', desc: 'Uses Unicode block characters (█▓▒░) for smooth gradient transitions. Creates a tiled mosaic effect that reads well at smaller font sizes.' },
+  braille: { icon: '⠿', title: 'Braille Mode', desc: 'Uses Braille Unicode characters (⠀–⣿) to encode a 2×4 grid of pixels per character. Extremely high resolution at small font sizes.' },
+  matrix: { icon: '◈', title: 'Matrix Mode', desc: 'Random katakana and latin characters with a glowing green effect. Brightness still encodes density — the Matrix aesthetic with real image structure.' },
+  emoji: { icon: '🎨', title: 'Emoji Mode', desc: 'Each pixel block is approximated by a color-matching emoji. Creates a fun, colorful mosaic with a reduced resolution grid.' }
+};
+
+const EMOJI_PALETTE = [
+  { r:0,g:0,b:0, e:'⬛' },
+  { r:255,g:255,b:255, e:'⬜' },
+  { r:255,g:0,b:0, e:'🟥' },
+  { r:255,g:165,b:0, e:'🟧' },
+  { r:255,g:255,b:0, e:'🟨' },
+  { r:0,g:255,b:0, e:'🟩' },
+  { r:0,g:0,b:255, e:'🟦' },
+  { r:128,g:0,b:128, e:'🟪' },
+  { r:165,g:42,b:42, e:'🟫' },
+];
+
+const MATRIX_CHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン01';
+
+let currentMode = 'ascii';
+let selectedColor = '#6affd4';
+let loadedImage = null;
+let currentFontSize = 7;
+let lastOutput = '';
+
+// UI refs
+const fileInput = document.getElementById('file-input');
+const previewImg = document.getElementById('preview-img');
+const uploadPlaceholder = document.getElementById('upload-placeholder');
+const convertBtn = document.getElementById('convert-btn');
+const asciiResult = document.getElementById('ascii-result');
+const outputPanel = document.getElementById('output-panel');
+const statusBar = document.getElementById('status-bar');
+const resSlider = document.getElementById('res-slider');
+const contrastSlider = document.getElementById('contrast-slider');
+const brightSlider = document.getElementById('bright-slider');
+const canvas = document.getElementById('work-canvas');
+const ctx = canvas.getContext('2d');
+
+// Mode tabs
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentMode = tab.dataset.mode;
+    const info = MODE_INFO[currentMode];
+    document.getElementById('mode-description').innerHTML = `
+      <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:1rem;">
+        <span style="font-size:1.5rem;">${info.icon}</span>
+        <div>
+          <strong style="color:var(--text);font-size:14px;">${info.title}</strong>
+          <p>${info.desc}</p>
+        </div>
+      </div>`;
+  });
+});
+
+// Sliders
+resSlider.addEventListener('input', () => document.getElementById('res-val').textContent = resSlider.value);
+contrastSlider.addEventListener('input', () => document.getElementById('contrast-val').textContent = parseFloat(contrastSlider.value).toFixed(1));
+brightSlider.addEventListener('input', () => document.getElementById('bright-val').textContent = brightSlider.value);
+
+// Color swatches
+document.querySelectorAll('.color-swatch').forEach(sw => {
+  sw.addEventListener('click', () => {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    selectedColor = sw.dataset.color;
+    asciiResult.style.color = selectedColor;
+  });
+});
+
+// File input
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      loadedImage = img;
+      previewImg.src = ev.target.result;
+      previewImg.style.display = 'block';
+      uploadPlaceholder.style.display = 'none';
+      convertBtn.disabled = false;
+      document.getElementById('stat-dim').textContent = `${img.width}×${img.height}`;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+// Drag over
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    fileInput.dispatchEvent(new Event('change'));
+  }
+});
+
+function getPixelData(width, height) {
+  canvas.width = width;
+  canvas.height = height;
+  ctx.filter = `contrast(${contrastSlider.value}) brightness(${1 + parseInt(brightSlider.value)/100})`;
+  ctx.drawImage(loadedImage, 0, 0, width, height);
+  return ctx.getImageData(0, 0, width, height).data;
+}
+
+function getLuminance(r, g, b) {
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+function convertASCII(cols, charset) {
+  const aspect = 0.55;
+  const rows = Math.floor(cols * (loadedImage.height / loadedImage.width) * aspect);
+  const data = getPixelData(cols, rows);
+  const chars = charset.split('');
+  const invert = document.getElementById('invert-check').checked;
+  let out = '';
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = (y * cols + x) * 4;
+      let lum = getLuminance(data[i], data[i+1], data[i+2]) / 255;
+      if (invert) lum = 1 - lum;
+      const idx = Math.floor(lum * (chars.length - 1));
+      out += chars[idx];
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+function convertBinary(cols) {
+  const aspect = 0.55;
+  const rows = Math.floor(cols * (loadedImage.height / loadedImage.width) * aspect);
+  const data = getPixelData(cols, rows);
+  const threshold = 128;
+  const invert = document.getElementById('invert-check').checked;
+  let out = '';
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = (y * cols + x) * 4;
+      const lum = getLuminance(data[i], data[i+1], data[i+2]);
+      let bit = lum < threshold ? '1' : '0';
+      if (invert) bit = bit === '1' ? '0' : '1';
+      out += bit;
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+function convertBlocks(cols) {
+  const aspect = 0.55;
+  const rows = Math.floor(cols * (loadedImage.height / loadedImage.width) * aspect);
+  const data = getPixelData(cols, rows);
+  const blocks = ['█','▓','▒','░',' '];
+  const invert = document.getElementById('invert-check').checked;
+  let out = '';
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = (y * cols + x) * 4;
+      let lum = getLuminance(data[i], data[i+1], data[i+2]) / 255;
+      if (invert) lum = 1 - lum;
+      const idx = Math.floor(lum * (blocks.length - 1));
+      out += blocks[idx];
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+function convertBraille(cols) {
+  // Each braille char = 2 cols × 4 rows of pixels
+  const aspect = 0.55;
+  const bCols = Math.floor(cols / 2);
+  const pixW = bCols * 2;
+  const pixH = Math.floor(pixW * (loadedImage.height / loadedImage.width) * aspect);
+  const bRows = Math.floor(pixH / 4);
+  const data = getPixelData(pixW, bRows * 4);
+  const threshold = 128;
+  const invert = document.getElementById('invert-check').checked;
+
+  // Braille dot positions (bit offsets): col0 rows 0-3 = bits 0,1,2,6; col1 rows 0-3 = bits 3,4,5,7
+  const DOT_BITS = [[0,1,2,6],[3,4,5,7]];
+  let out = '';
+
+  for (let br = 0; br < bRows; br++) {
+    for (let bc = 0; bc < bCols; bc++) {
+      let code = 0;
+      for (let dc = 0; dc < 2; dc++) {
+        for (let dr = 0; dr < 4; dr++) {
+          const px = bc * 2 + dc;
+          const py = br * 4 + dr;
+          const i = (py * pixW + px) * 4;
+          let lum = getLuminance(data[i], data[i+1], data[i+2]);
+          if (invert) lum = 255 - lum;
+          if (lum < threshold) code |= (1 << DOT_BITS[dc][dr]);
+        }
+      }
+      out += String.fromCodePoint(0x2800 + code);
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+function convertMatrix(cols) {
+  const aspect = 0.55;
+  const rows = Math.floor(cols * (loadedImage.height / loadedImage.width) * aspect);
+  const data = getPixelData(cols, rows);
+  const invert = document.getElementById('invert-check').checked;
+  const chars = MATRIX_CHARS;
+  let out = '';
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const i = (y * cols + x) * 4;
+      let lum = getLuminance(data[i], data[i+1], data[i+2]) / 255;
+      if (invert) lum = 1 - lum;
+      if (lum < 0.15) { out += ' '; }
+      else { out += chars[Math.floor(Math.random() * chars.length)]; }
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+function convertEmoji(cols) {
+  const eCols = Math.min(cols, 60);
+  const aspect = 1.0;
+  const rows = Math.floor(eCols * (loadedImage.height / loadedImage.width) * aspect);
+  const data = getPixelData(eCols, rows);
+  let out = '';
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < eCols; x++) {
+      const i = (y * eCols + x) * 4;
+      const r = data[i], g = data[i+1], b = data[i+2];
+      let best = EMOJI_PALETTE[0], bestDist = Infinity;
+      for (const p of EMOJI_PALETTE) {
+        const d = (r-p.r)**2 + (g-p.g)**2 + (b-p.b)**2;
+        if (d < bestDist) { bestDist = d; best = p; }
+      }
+      out += best.e;
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+function edgeDetect(cols) {
+  const aspect = 0.55;
+  const rows = Math.floor(cols * (loadedImage.height / loadedImage.width) * aspect);
+  canvas.width = cols; canvas.height = rows;
+  ctx.drawImage(loadedImage, 0, 0, cols, rows);
+  const src = ctx.getImageData(0, 0, cols, rows).data;
+  // Sobel
+  let out = '';
+  const edgeChars = '-\\|/+:. ';
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const idx = (y * cols + x) * 4;
+      const get = (px, py) => {
+        if (px < 0 || px >= cols || py < 0 || py >= rows) return 0;
+        const i2 = (py * cols + px) * 4;
+        return getLuminance(src[i2], src[i2+1], src[i2+2]);
+      };
+      const gx = -get(x-1,y-1) + get(x+1,y-1) - 2*get(x-1,y) + 2*get(x+1,y) - get(x-1,y+1) + get(x+1,y+1);
+      const gy = get(x-1,y-1) + 2*get(x,y-1) + get(x+1,y-1) - get(x-1,y+1) - 2*get(x,y+1) - get(x+1,y+1);
+      const mag = Math.sqrt(gx*gx + gy*gy);
+      if (mag < 20) { out += ' '; continue; }
+      const angle = Math.atan2(gy, gx) * 180 / Math.PI;
+      if (angle < -67.5 || angle >= 67.5) out += '|';
+      else if (angle >= -22.5 && angle < 22.5) out += '-';
+      else if (angle >= 22.5 && angle < 67.5) out += '/';
+      else out += '\\';
+    }
+    out += '\n';
+  }
+  return out;
+}
+
+convertBtn.addEventListener('click', async () => {
+  if (!loadedImage) return;
+  const t0 = performance.now();
+
+  convertBtn.disabled = true;
+  statusBar.classList.add('active');
+  document.getElementById('status-text').textContent = 'Generating ASCII art...';
+
+  await new Promise(r => setTimeout(r, 0)); // let UI update
+
+  const cols = parseInt(resSlider.value);
+  const charset = CHARSETS[document.getElementById('charset-select').value] || CHARSETS.standard;
+  const useEdge = document.getElementById('edge-check').checked;
+
+  let output = '';
+  try {
+    if (useEdge) {
+      output = edgeDetect(cols);
+    } else {
+      switch (currentMode) {
+        case 'ascii': output = convertASCII(cols, charset); break;
+        case 'binary': output = convertBinary(cols); break;
+        case 'blocks': output = convertBlocks(cols); break;
+        case 'braille': output = convertBraille(cols); break;
+        case 'matrix': output = convertMatrix(cols); break;
+        case 'emoji': output = convertEmoji(cols); break;
+        default: output = convertASCII(cols, charset);
+      }
+    }
+  } catch(e) {
+    output = 'Error: ' + e.message;
+  }
+
+  lastOutput = output;
+  asciiResult.textContent = output;
+  asciiResult.className = `mode-${currentMode}`;
+  asciiResult.style.color = selectedColor;
+  if (currentMode === 'matrix') asciiResult.style.textShadow = `0 0 6px ${selectedColor}`;
+  else asciiResult.style.textShadow = 'none';
+  asciiResult.style.fontSize = currentFontSize + 'px';
+
+  const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+  const lines = output.split('\n').filter(l => l.length > 0);
+  const totalChars = output.replace(/\n/g,'').length;
+
+  document.getElementById('stat-chars').textContent = totalChars.toLocaleString();
+  document.getElementById('stat-mode').textContent = useEdge ? 'edge' : currentMode;
+  document.getElementById('stat-time').textContent = elapsed + 's';
+  document.getElementById('output-info').textContent = `${lines.length} rows × ${lines[0]?.length || 0} cols`;
+
+  outputPanel.classList.add('visible');
+  statusBar.classList.remove('active');
+  convertBtn.disabled = false;
+
+  outputPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+function copyOutput() {
+  navigator.clipboard.writeText(lastOutput).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+function downloadOutput() {
+  const blob = new Blob([lastOutput], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ascii-art-${currentMode}.txt`;
+  a.click();
+}
+
+function increaseFontSize() {
+  currentFontSize = Math.min(14, currentFontSize + 1);
+  asciiResult.style.fontSize = currentFontSize + 'px';
+}
+
+function decreaseFontSize() {
+  currentFontSize = Math.max(4, currentFontSize - 1);
+  asciiResult.style.fontSize = currentFontSize + 'px';
+}
+</script>
+</body>
+</html>
